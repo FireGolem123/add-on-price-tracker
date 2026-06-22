@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Avocado Price Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:    #4caf50;
+      --green-dk: #2e7d32;
+      --cream:    #f5f0e8;
+      --text:     #1a1a1a;
+      --muted:    #666;
+      --card:     #ffffff;
+      --border:   #e0d8c8;
+      --red:      #e53935;
+    }
+
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+    header { background: var(--green-dk); color: white; padding: 1.5rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.6rem; font-weight: 700; }
+    header p  { font-size: 0.9rem; opacity: 0.85; margin-top: 0.2rem; }
+    .avo-icon { font-size: 2.4rem; }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .controls { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 2rem; }
+    .controls label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .controls select, .controls input { padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; background: var(--cream); min-width: 180px; }
+    .btn { padding: 0.65rem 1.4rem; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .btn-primary { background: var(--green); color: white; }
+    .btn-primary:hover { background: var(--green-dk); }
+    .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-secondary { background: #666; color: white; }
+    .btn-secondary:hover { background: #444; }
+
+    #status-bar { padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; display: none; }
+    #status-bar.info    { background: #e3f2fd; color: #0d47a1; display: block; }
+    #status-bar.success { background: #e8f5e9; color: var(--green-dk); display: block; }
+    #status-bar.error   { background: #ffebee; color: var(--red); display: block; }
+
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; }
+    .stat-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .stat-card .value { font-size: 1.9rem; font-weight: 700; color: var(--green-dk); }
+    .stat-card .sub   { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; }
+    .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; color: var(--green-dk); }
+
+    .bar-row   { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; font-size: 0.85rem; }
+    .bar-label { width: 110px; text-align: right; color: var(--muted); flex-shrink: 0; }
+    .bar-track { flex: 1; background: #e8f5e9; border-radius: 4px; height: 20px; overflow: hidden; }
+    .bar-fill  { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.6s ease; }
+    .bar-count { width: 46px; text-align: right; font-weight: 600; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 2px solid var(--border); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .tag-addon { background: #e8f5e9; color: var(--green-dk); }
+    .tag-item  { background: #fff3e0; color: #e65100; }
+    .price-hi  { color: var(--red); font-weight: 700; }
+    .price-lo  { color: var(--green-dk); font-weight: 700; }
+    .empty     { color: var(--muted); font-size: 0.9rem; text-align: center; padding: 2rem 0; }
+
+    #results { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="avo-icon">🥑</div>
+  <div>
+    <h1>Avocado Price Tracker</h1>
+    <p>What are restaurants actually charging to add avocado?</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="controls">
+    <div>
+      <label for="city-select">City</label>
+      <select id="city-select">
+        {% for city in cities %}
+        <option value="{{ city }}" {% if city == 'philadelphia' %}selected{% endif %}>{{ city.title() }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="keyword-input">Search Term</label>
+      <input id="keyword-input" type="text" value="avocado" placeholder="e.g. avocado, truffle, bacon..." />
+    </div>
+    <button class="btn btn-primary" id="scan-btn" onclick="startScan()">Run Scan</button>
+    <button class="btn btn-secondary" onclick="loadResults()">Load Last Results</button>
+  </div>
+
+  <div id="status-bar"></div>
+
+  <div id="results">
+    <div class="summary-grid" id="summary-cards"></div>
+    <div class="two-col">
+      <div class="card">
+        <h2>Price Distribution — Avocado Menu Items</h2>
+        <div id="dist-chart"></div>
+      </div>
+      <div class="card">
+        <h2>Average Add-on by Food Category</h2>
+        <div id="cat-chart"></div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <h2>Most Expensive Restaurants (avg add-on)</h2>
+        <table id="expensive-table"><thead><tr><th>Restaurant</th><th>Avg Charge</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Cheapest Restaurants (avg add-on)</h2>
+        <table id="cheapest-table"><thead><tr><th>Restaurant</th><th>Avg Charge</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem">
+      <h2>Most Common Price Points</h2>
+      <div id="common-prices"></div>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem">
+      <h2>By Yelp Price Tier</h2>
+      <div id="tier-chart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Raw Data <span style="font-weight:400;color:var(--muted);font-size:0.85rem">(first 300 rows)</span></h2>
+      <table id="raw-table">
+        <thead><tr><th>Restaurant</th><th>Yelp Tier</th><th>Rating</th><th>Item</th><th>Section</th><th>Category</th><th>Type</th><th>Price</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  let pollTimer = null;
+
+  function setStatus(msg, type) {
+    const bar = document.getElementById('status-bar');
+    bar.textContent = msg;
+    bar.className = type;
+  }
+
+  async function startScan() {
+    const city    = document.getElementById('city-select').value;
+    const keyword = document.getElementById('keyword-input').value.trim() || 'avocado';
+    document.getElementById('scan-btn').disabled = true;
+    setStatus(`Starting scan for "${keyword}" in ${city.charAt(0).toUpperCase() + city.slice(1)}...`, 'info');
+    document.getElementById('results').style.display = 'none';
+
+    const resp = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city, keyword }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      setStatus('Error: ' + (err.error || 'Unknown'), 'error');
+      document.getElementById('scan-btn').disabled = false;
+      return;
+    }
+    pollTimer = setInterval(pollStatus, 2000);
+  }
+
+  async function pollStatus() {
+    const resp = await fetch('/api/status');
+    const s = await resp.json();
+    setStatus(s.progress || 'Working...', s.error ? 'error' : 'info');
+    if (s.error) {
+      clearInterval(pollTimer);
+      document.getElementById('scan-btn').disabled = false;
+    } else if (s.done) {
+      clearInterval(pollTimer);
+      setStatus(s.progress, 'success');
+      document.getElementById('scan-btn').disabled = false;
+      loadResults();
+    }
+  }
+
+  async function loadResults() {
+    const resp = await fetch('/api/results');
+    if (!resp.ok) {
+      setStatus('No data found — run a scan first.', 'error');
+      return;
+    }
+    const data = await resp.json();
+    renderResults(data);
+    const raw = await fetch('/api/raw');
+    renderRaw(await raw.json());
+    document.getElementById('results').style.display = 'block';
+    if (!document.getElementById('status-bar').classList.contains('info')) {
+      setStatus('Results loaded.', 'success');
+    }
+  }
+
+  function fmt(n) { return n != null ? '$' + n.toFixed(2) : '—'; }
+
+  function renderResults(d) {
+    const s   = d.overall_stats || {};
+    const sa  = d.addon_stats || {};
+    const sm  = d.menu_item_stats || {};
+    const primaryLabel = d.has_addon_data ? 'add-on charges' : 'avocado dishes';
+    const cards = [
+      { label: 'Add-on Charges',  value: d.addon_count,      sub: 'explicit avocado upcharges' },
+      { label: 'Avocado Dishes',  value: d.menu_item_count,  sub: 'menu items w/ avocado' },
+      { label: 'Avg Add-on $',    value: sa.mean != null ? fmt(sa.mean) : '—',   sub: 'to add avocado' },
+      { label: 'Avg Dish Price',  value: sm.mean != null ? fmt(sm.mean) : '—',   sub: 'avocado menu items' },
+      { label: 'Lowest Add-on',   value: sa.min  != null ? fmt(sa.min)  : '—',   sub: 'cheapest upcharge' },
+      { label: 'Highest Add-on',  value: sa.max  != null ? fmt(sa.max)  : '—',   sub: 'most expensive upcharge' },
+    ];
+    document.getElementById('summary-cards').innerHTML = cards.map(c =>
+      `<div class="stat-card"><div class="label">${c.label}</div><div class="value">${c.value ?? '—'}</div><div class="sub">${c.sub}</div></div>`
+    ).join('');
+
+    const dist = d.distribution || {};
+    const maxDist = Math.max(...Object.values(dist), 1);
+    document.getElementById('dist-chart').innerHTML = Object.entries(dist).map(([label, count]) =>
+      `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill" style="width:${(count/maxDist)*100}%"></div></div><div class="bar-count">${count}</div></div>`
+    ).join('');
+
+    const cats = d.by_category || {};
+    const maxCat = Math.max(...Object.values(cats).map(c => c.mean), 0.01);
+    document.getElementById('cat-chart').innerHTML = Object.entries(cats)
+      .sort((a,b) => b[1].mean - a[1].mean)
+      .map(([cat, s]) =>
+        `<div class="bar-row"><div class="bar-label">${cat}</div><div class="bar-track"><div class="bar-fill" style="width:${(s.mean/maxCat)*100}%"></div></div><div class="bar-count">${fmt(s.mean)}</div></div>`
+      ).join('') || '<div class="empty">No data</div>';
+
+    const fillTable = (id, rows, cls) => {
+      document.querySelector(`#${id} tbody`).innerHTML = rows.map(([name, avg]) =>
+        `<tr><td>${name}</td><td class="${cls}">${fmt(avg)}</td></tr>`
+      ).join('') || '<tr><td colspan="2" class="empty">No data</td></tr>';
+    };
+    fillTable('expensive-table', d.top_10_expensive || [], 'price-hi');
+    fillTable('cheapest-table',  d.top_10_cheapest  || [], 'price-lo');
+
+    const cp = d.most_common_prices || [];
+    const maxCp = Math.max(...cp.map(x => x.count), 1);
+    document.getElementById('common-prices').innerHTML = cp.map(x =>
+      `<div class="bar-row"><div class="bar-label">${fmt(x.price)}</div><div class="bar-track"><div class="bar-fill" style="width:${(x.count/maxCp)*100}%"></div></div><div class="bar-count">${x.count}×</div></div>`
+    ).join('') || '<div class="empty">No data</div>';
+
+    // Price tier chart (Yelp data)
+    const tiers = d.by_price_tier || {};
+    const tierOrder = ['$', '$$', '$$$', '$$$$', ''];
+    const tierLabels = { '$': '$ Budget', '$$': '$$ Mid-range', '$$$': '$$$ Upscale', '$$$$': '$$$$ Fine dining', '': 'Unrated' };
+    const maxTier = Math.max(...Object.values(tiers).map(t => t.mean), 0.01);
+    const tierEl = document.getElementById('tier-chart');
+    if (tierEl) {
+      tierEl.innerHTML = tierOrder
+        .filter(k => tiers[k])
+        .map(k => {
+          const s = tiers[k];
+          return `<div class="bar-row">
+            <div class="bar-label">${tierLabels[k] || k}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${(s.mean/maxTier)*100}%"></div></div>
+            <div class="bar-count">${fmt(s.mean)} <span style="color:var(--muted);font-size:0.75rem">(${s.count})</span></div>
+          </div>`;
+        }).join('') || '<div class="empty">No tier data — Yelp metadata not yet loaded</div>';
+    }
+  }
+
+  function renderRaw(data) {
+    const tbody = document.querySelector('#raw-table tbody');
+    if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No data</td></tr>'; return; }
+    tbody.innerHTML = data.slice(0, 300).map(r =>
+      `<tr>
+        <td>${r.restaurant}</td>
+        <td style="color:var(--green-dk);font-weight:600">${r.price_tier || '—'}</td>
+        <td>${r.yelp_rating ? '★ ' + r.yelp_rating : '—'}</td>
+        <td>${r.item}</td>
+        <td style="color:var(--muted);font-size:0.8rem">${r.section || '—'}</td>
+        <td>${r.category}</td>
+        <td><span class="tag ${r.type === 'add_on' ? 'tag-addon' : 'tag-item'}">${r.type}</span></td>
+        <td><strong>${fmt(r.price_usd)}</strong></td>
+      </tr>`
+    ).join('');
+  }
+
+  window.addEventListener('load', () => loadResults().catch(() => {}));
+</script>
+</body>
+</html>

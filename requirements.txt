@@ -1,0 +1,4 @@
+flask>=3.0
+requests>=2.31
+rich>=13.7
+python-dotenv>=1.0
